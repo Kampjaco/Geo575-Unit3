@@ -16,14 +16,17 @@ function setMap(){
 
     //create Albers equal area conic projection centered on France
     var projection = d3.geoAlbers()
-        .center([-94.54263202773095, 45.68805914298588])
-        .rotate([-2, 0, 0])
-        .parallels([0, 0])
-        .scale(2500)
+        .center([3.64, 33.6])
+        
+        .rotate([99.18, -12.73, 0])
+        
+        .parallels([29.5, 45.5])
+        
+        .scale(1967.68)
+        
         .translate([width / 2, height / 2]);
-
-        var path = d3.geoPath()
-            .projection(projection);
+    var path = d3.geoPath()
+        .projection(projection);
 
     //use Promise.all to parallelize asynchronous data loading
     var promises = [];    
