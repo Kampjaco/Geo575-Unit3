@@ -1,6 +1,13 @@
 /*Add CSS styles here*/
 .counties {
-    fill: #FFF;
+    fill: #ad26d2;
     stroke: #CCC;
     stroke-width: 2px;
 }
+
+.states {
+    fill: #efefef;
+    stroke: #8f8888;
+    stroke-width: 2px;
+}
+
