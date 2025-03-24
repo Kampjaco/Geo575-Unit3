@@ -4,7 +4,7 @@ window.onload = setMap();
 //set up choropleth map
 function setMap(){
     //map frame dimensions
-    var width = 1760,
+    var width = 1900,
     height = 860;
 
     //create new svg container for the map
@@ -26,7 +26,7 @@ function setMap(){
 
     //use Promise.all to parallelize asynchronous data loading
     var promises = [];    
-    promises.push(d3.csv("data/mn_counties.csv")); //load attributes from csv    
+    promises.push(d3.csv("data/mn_counties_act10.csv")); //load attributes from csv    
     promises.push(d3.json("data/counties_shapefile.topojson")); //load spatial data
     promises.push(d3.json("data/US_StateBoundaries_Project.topojson")); //load spatial data
     Promise.all(promises).then(callback);
@@ -42,6 +42,29 @@ function setMap(){
         var states_geojson = topojson.feature(state_data, state_data.objects.US_StateBoundaries_Project);
 
         console.log(counties_geojson);
+
+        //Variables for data join
+        var attArray =["2020 Pop","2024 Pop", "2020-2024 Pop Change"]
+
+        for(var i = 0; i < csvData.length; i++) {
+            var csvRegion = csvData[i];
+            var csvKey = csvRegion.County; //CSV primary key
+
+            //Loop throuhg geojson regions to find correct region
+            for(var a=0; a < counties_geojson.length; a++) {
+                var geojsonProps = counties_geojson[a].properties;
+                var geojsonKey = geojsonProps.COUNTY_NAM;
+
+                //When primary keys match, transfer csv data to geojson properties object
+                if(geojsonKey == csvKey) {
+                    //Assign all attributes and values
+                    attArray.forEach(function(attr) {
+                        var val = parseFloat(csvRegion[attr]); //get csv attrivute value
+                        geojsonProps[attr] = val; //assign attrivute and value to geojson properties
+                    });
+                };
+            };
+        };
 
                 //Add counties to map
         var counties = map.selectAll(".counties")
