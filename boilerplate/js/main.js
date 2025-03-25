@@ -10,8 +10,8 @@
     //set up choropleth map
     function setMap(){
         //map frame dimensions
-        var width = 1900,
-        height = 860;
+        var width = 900,
+        height = 500;
 
         //create new svg container for the map
         var map = d3.select("body")
@@ -63,6 +63,9 @@
 
             //Add enumeration units to map
             setEnumerationUnits(counties_geojson, map, path, colorScale);
+
+            //Add coordinated visualization to the map
+            setChart(csvData, colorScale);
         };
     }
 
@@ -143,6 +146,20 @@
             .style("fill", function(d) {
                 return colorScale(d.properties[expressed]);
             });
+    }
+
+    //Function to create coordinated bar chart
+    function setChart(csvData, colorScale) {
+        //Chart frame dimensions
+        var chartWidth = 960,
+            chartHeight = 460;
+
+        //Create a second svg element to hold the bar chart
+        var chart = d3.select("body")
+            .append("svg")
+            .attr("width", chartWidth)
+            .attr("height", chartHeight)
+            .attr("class", "chart");
     }
 
 })();
