@@ -166,8 +166,6 @@
             })
             .on("mousemove", moveLabel);
 
-        console.log(counties);
-
         var desc = counties.append("desc")
             .text('{"stroke": "#000", "stroke-width": "0.5px"}');
     }
@@ -206,8 +204,6 @@
                 dehighlight(d);
             })
             .on("mousemove", moveLabel);
-
-            console.log(bars)
 
         var desc = bars.append("desc")
             .text('{"stroke": "none", "stroke-width": "0px"}');
@@ -281,8 +277,7 @@
                 var value = d.properties[expressed];            
                 if(value) {               
                     return colorScale(value);            
-                } else {
-                    console.log(d, value)                     
+                } else {                   
                     return "#ccc";
                                
                 }    
@@ -339,6 +334,7 @@
 
     //function to highlight enumeration units and bars
     function highlight(props){
+        console.log(props)
         //change stroke
         var selected = d3.selectAll(".counties")
             .filter(d => d.properties.COUNTY_FIP === props.COUNTY_FIP) // Filter by FIP code
@@ -349,8 +345,6 @@
             .filter(d => d.COUNTYFP === props.COUNTY_FIP) // Ensure FIP codes match
             .style("stroke", "purple")
             .style("stroke-width", "2px");
-
-        console.log(selectedBar)
 
         //Get labels for highlighted counties
         setLabel(props)
@@ -397,10 +391,6 @@
             .attr("class", "infolabel")
             .attr("id", props.COUNTY_FIP + "_label")
             .html(labelAttribute);
-
-        var countyName = infolabel.append("div")
-            .attr("class", "labelname")
-            .html(props.name);
     };
 
     //function to move info label with mouse
