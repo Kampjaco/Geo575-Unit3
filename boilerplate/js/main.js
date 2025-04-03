@@ -263,6 +263,8 @@
 
         //recolor enumeration units
         var counties = d3.selectAll(".counties")
+            .transition()
+            .duration(1000)
             .style("fill", function(d){            
                 var value = d.properties[expressed];            
                 if(value) {
@@ -278,11 +280,21 @@
         var bars = d3.selectAll(".bar")
             .data(filteredData = getFilteredData(csvData))
             .sort((a, b) => b[expressed] - a[expressed])
-            .attr("width", chartInnerWidth / filteredData.length - 1);
+            .attr("width", chartInnerWidth / filteredData.length - 1)
+            .transition()
+            .delay(function(d, i) {
+                return i * 20;
+            })
+            .duration(500);
         
         var numbers = d3.selectAll(".numbers")
             .data(filteredData = getFilteredData(csvData))
             .sort((a, b) => b[expressed] - a[expressed])
+            .transition()
+            .delay(function(d, i) {
+                return i * 20;
+            })
+            .duration(500);
 
 
         updateChart(bars, numbers, csvData.length, colorScale)
