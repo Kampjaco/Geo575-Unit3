@@ -1,8 +1,23 @@
 (function() {
 
     //Pseudo-global variables
-    var attArray =["2020 Pop","2024 Pop", "2020-2024 Pop Change"];
-    var expressed = attArray[2];
+    var attArray =["1970 - 1980", "1980 - 1990", "1990 - 2000", "2000 - 2010", "2010 - 2020"];
+    var expressed = attArray[0];
+
+    //chart frame dimensions
+    var chartWidth = window.innerWidth * 0.425,
+        chartHeight = 473,
+        leftPadding = 25,
+        rightPadding = 2,
+        topBottomPadding = 5,
+        chartInnerWidth = chartWidth - leftPadding - rightPadding,
+        chartInnerHeight = chartHeight - topBottomPadding * 2,
+        translate = "translate(" + leftPadding + "," + topBottomPadding + ")";
+    
+    // Create a scale to size bars proportionally to frame and for the axis
+    var yScale = d3.scaleLinear()
+        .range([463, 0])
+        .domain([-25, 70]);
 
     //begin script when window loads
     window.onload = setMap();
@@ -32,7 +47,7 @@
 
         //use Promise.all to parallelize asynchronous data loading
         var promises = [];    
-        promises.push(d3.csv("data/mn_counties_act10.csv")); //load attributes from csv    
+        promises.push(d3.csv("data/lab2_mn_counties.csv")); //load attributes from csv    
         promises.push(d3.json("data/counties_shapefile.topojson")); //load spatial data
         promises.push(d3.json("data/US_StateBoundaries_Project.topojson")); //load spatial data
         Promise.all(promises).then(callback);
@@ -64,43 +79,42 @@
 
             //Add coordinated visualization to the map
             setChart(csvData, colorScale);
+
+            //Creates dropdown of attributes
+            createDropdown(csvData);
         };
     }
 
     //Function to create color scale generator
     function makeColorScale(data) {
         var colorClasses = [
-            "#d73027",
-            "#f46d43",
-            "#fdae61",
-            "#fee090",
-            "#e0f3f8",
-            "#abd9e9",
-            "#74add1",
-            "#4575b4"
+            "#b2182b",
+            "#d6604d",
+            "#f4a582",
+            "#fddbc7",
+            "#f7f7f7",
+            "#d1e5f0",
+            "#92c5de",
+            "#4393c3",
+            "#2166ac"
         ];
-
-        // Extract min and max values
-        var min = d3.min(data, d => parseFloat(d[expressed]));
-        var max = d3.max(data, d => parseFloat(d[expressed]));
 
         // Define threshold values for classification, equal interval
         var breakpoints = [
-            -6,
-            -4,
-            -2,
+            -15,
+            -10,
+            -5,
             0,
-            2,
-            4,
-            6
+            5,
+            10,
+            20,
+            40
         ];
 
         // Create a threshold scale
         var colorScale = d3.scaleThreshold()
             .domain(breakpoints)
             .range(colorClasses);
-
-        console.log("Breakpoints:", breakpoints);
 
         return colorScale;
     }
@@ -109,7 +123,7 @@
 
         for(var i = 0; i < csvData.length; i++) {
             var csvRegion = csvData[i];
-            var csvKey = csvRegion.County; //CSV primary key
+            var csvKey = csvRegion.COUNTY; //CSV primary key
 
             //Loop throuhg geojson regions to find correct region
             for(var a=0; a < counties_geojson.length; a++) {
@@ -143,21 +157,11 @@
             })
             .style("fill", function(d) {
                 return colorScale(d.properties[expressed]);
-            });
+            })
     }
 
     //Function to create coordinated bar chart
     function setChart(csvData, colorScale){
-        //chart frame dimensions
-        var chartWidth = window.innerWidth * 0.425,
-            chartHeight = 473,
-            leftPadding = 25,
-            rightPadding = 2,
-            topBottomPadding = 5,
-            chartInnerWidth = chartWidth - leftPadding - rightPadding,
-            chartInnerHeight = chartHeight - topBottomPadding * 2,
-            translate = "translate(" + leftPadding + "," + topBottomPadding + ")";
-
         //create a second svg element to hold the bar chart
         var chart = d3.select("body")
             .append("svg")
@@ -172,18 +176,8 @@
             .attr("height", chartInnerHeight)
             .attr("transform", translate);
 
-        // Sort the data in descending order
-        var sortedData = csvData.sort((a, b) => b[expressed] - a[expressed]);
-
-        // Extract the top 5 (highest values) and bottom 5 (lowest values)
-        var top5 = sortedData.slice(0, 5);
-        var bottom5 = sortedData.slice(-5);
-        var filteredData = bottom5.concat(top5); // Combine them
-
-        // Create a scale to size bars proportionally to frame and for the axis
-        var yScale = d3.scaleLinear()
-            .range([463, 0])
-            .domain([-8, 10]);
+        //Get filtered data to selected attribute
+        var filteredData = getFilteredData(csvData)
 
         // Set bars for only the top 5 and bottom 5 counties
         var bars = chart.selectAll(".bar")
@@ -192,11 +186,7 @@
             .append("rect")
             .sort((a, b) => b[expressed] - a[expressed])
             .attr("class", d => "bar " + d.County)
-            .attr("width", chartInnerWidth / filteredData.length - 1)
-            .attr("x", (d, i) => i * (chartInnerWidth / filteredData.length) + leftPadding)
-            .attr("height", d => Math.abs(yScale(d[expressed]) - yScale(0))) // Height is absolute difference from zero
-            .attr("y", d => d[expressed] >= 0 ? yScale(d[expressed]) : yScale(0)) // Positive bars go up, negative bars go down
-            .style("fill", d => colorScale(d[expressed]));
+            .attr("width", chartInnerWidth / filteredData.length - 1);
 
         //annotate bars with attribute value text
         var numbers = chart.selectAll(".numbers")
@@ -207,59 +197,16 @@
                 return b[expressed]-a[expressed]
             })
             .attr("class", function(d){
-                return "numbers " + d.County;
+                return "numbers " + d.COUNTY;
             })
             .attr("text-anchor", "middle")
-            .attr("x", (d, i) => i * (chartWidth / filteredData.length) + 45) 
-            .attr("y", d => {
-                return d[expressed] >= 0 
-                    ? yScale(d[expressed]) - 5  // Position text above positive bars
-                    : yScale(d[expressed]) + 15; // Position text below negative bars
-            })
-            .text(function(d){
-                return d[expressed];
-            });
+            
 
-        //County labels within the bars
-        var countyLabels = chart.selectAll(".countyLabel")
-            .data(filteredData)
-            .enter()
-            .append("text")
-            .sort(function(a, b){
-                return b[expressed]-a[expressed]
-            })
-            .attr("class", d => "countyLabel " + d.County)
-            .attr("x", (d, i) => i * (chartWidth / filteredData.length) + 20)
-            .attr("y", d => {
-                return d[expressed] >= 0 
-                    ? yScale(.25)  // Position text above positive bars
-                    : yScale(-.50); // Position text below negative bars
-            })
-            .attr("dy", "0.35em") // Adjusts text slightly for better vertical centering
-            .attr("transform", function(d, i) {
-                var x = d[expressed] >=0
-                    ? i * (chartWidth / filteredData.length) + (chartWidth / filteredData.length) / 2 -60
-                    : i * (chartWidth / filteredData.length) + (chartWidth / filteredData.length) / 2 + 55
-                var y = d[expressed] >= 0 
-                    ? yScale(d[expressed]) + (yScale(0) - yScale(d[expressed])) / 2 + 35
-                    : yScale(d[expressed]) - (yScale(d[expressed]) - yScale(0)) / 2 - 5
-                return `rotate(-45, ${x}, ${y})`; // Rotates -45 degrees around the label's position
-            })
-            .text(d => d.County)
-
-        // Create a text element for the chart title
         var chartTitle = chart.append("text")
-            .attr("x", 200)
+            .attr("x", chartWidth / 2) // Centers title horizontally
             .attr("y", 40)
             .attr("class", "chartTitle")
-            .text("Top 5 and Bottom 5 Population Change % in MN Counties (2020-2024)");
-
-        // Create a text element for the chart title
-        var chartTitle = chart.append("text")
-            .attr("x", chartInnerWidth / 2 -45)
-            .attr("y", 60)
-            .attr("class", "subTitle")
-            .text("Divided into categories by 2%");
+            .attr("text-anchor", "middle") // Ensures text is centered around the x position
 
 
         // Create vertical axis generator
@@ -278,7 +225,112 @@
             .attr("height", chartInnerHeight)
             .attr("transform", translate);
 
+        updateChart(bars, numbers, csvData.length, colorScale);
+
     };
+
+    //function to create a dropdown menu for attribute selection
+    function createDropdown(csvData){
+        //add select element
+        var dropdown = d3.select("body")
+            .append("select")
+            .attr("class", "dropdown")
+            .on("change", function(){
+                changeAttribute(this.value, csvData)
+            });
+
+        //add initial option
+        var titleOption = dropdown.append("option")
+            .attr("class", "titleOption")
+            .attr("disabled", "true")
+            .text("Select Decade");
+
+        //add attribute name options
+        var attrOptions = dropdown.selectAll("attrOptions")
+            .data(attArray)
+            .enter()
+            .append("option")
+            .attr("value", function(d){ return d })
+            .text(function(d){ return d });
+    };
+
+    function changeAttribute(attribute, csvData){
+        //change the expressed attribute
+        expressed = attribute;
+
+        //recreate the color scale
+        var colorScale = makeColorScale(csvData);
+
+        //recolor enumeration units
+        var counties = d3.selectAll(".counties")
+            .style("fill", function(d){            
+                var value = d.properties[expressed];            
+                if(value) {
+                    console.log(d, value)                
+                    return colorScale(value);            
+                } else {
+                    console.log(d, value)                     
+                    return "#ccc";
+                               
+                }    
+            });
+        // Set bars for only the top 5 and bottom 5 counties
+        var bars = d3.selectAll(".bar")
+            .data(filteredData = getFilteredData(csvData))
+            .sort((a, b) => b[expressed] - a[expressed])
+            .attr("width", chartInnerWidth / filteredData.length - 1);
+        
+        var numbers = d3.selectAll(".numbers")
+            .data(filteredData = getFilteredData(csvData))
+            .sort((a, b) => b[expressed] - a[expressed])
+
+
+        updateChart(bars, numbers, csvData.length, colorScale)
+  
+    };
+
+    function updateChart(bars, numbers, n, colorScale) {
+        bars.attr("x", (d, i) => i * (chartInnerWidth / 10) + leftPadding)
+            .attr("height", d => Math.abs(yScale(d[expressed]) - yScale(0))) // Height is absolute difference from zero
+            .attr("y", d => d[expressed] >= 0 ? yScale(d[expressed]) : yScale(0)) // Positive bars go up, negative bars go down
+            .style("fill", function(d){            
+                var value = d[expressed];            
+                if(value) {                
+                    return colorScale(value);            
+                } else {                
+                    return "#00000";
+                            
+                }  
+            });
+
+            numbers.attr("x", (d, i) => i * (chartInnerWidth / 10) + leftPadding + (chartInnerWidth / 10) / 2)
+            .attr("y", d => {
+                return d[expressed] >= 0 
+                    ? yScale(d[expressed]) - 5  // Position text above positive bars
+                    : yScale(d[expressed]) + 15; // Position text below negative bars
+            })
+            .text(function(d){
+                return d[expressed];
+            });
+            //at the bottom of updateChart()...add text to chart title
+        var chartTitle = d3.select(".chartTitle")
+            .text("Highest and Lowest Population Change Percentage in MN Counties Between " + expressed)
+            .attr("x", chartWidth / 2) // Centers title horizontally
+            .attr("text-anchor", "middle")
+    }
+
+    //Gets top 5 and bottom 5 population % changes for current attribute
+    function getFilteredData(csvData) {
+
+        var sortedData = csvData.sort((a, b) => b[expressed] - a[expressed]);
+
+        // Extract the top 5 (highest values) and bottom 5 (lowest values)
+        var top5 = sortedData.slice(0, 5);
+        var bottom5 = sortedData.slice(-5);
+        var filteredData = bottom5.concat(top5);
+
+        return filteredData;
+    }
 
 
 
