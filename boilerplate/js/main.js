@@ -153,11 +153,23 @@
             .append("path")
             .attr("d", path)
             .attr("class", function(d) {
-                return "counties " + d.properties.COUNTY_NAM
+                return "counties " + d.properties.COUNTY_FIP
             })
             .style("fill", function(d) {
                 return colorScale(d.properties[expressed]);
             })
+            .on("mouseover", function(event, d){
+                highlight(d.properties);
+            })
+            .on("mouseout", function(event, d){
+                dehighlight(d.properties);
+            })
+            .on("mousemove", moveLabel);
+
+        console.log(counties);
+
+        var desc = counties.append("desc")
+            .text('{"stroke": "#000", "stroke-width": "0.5px"}');
     }
 
     //Function to create coordinated bar chart
@@ -185,21 +197,21 @@
             .enter()
             .append("rect")
             .sort((a, b) => b[expressed] - a[expressed])
-            .attr("class", d => "bar " + d.County)
-            .attr("width", chartInnerWidth / filteredData.length - 1);
+            .attr("class", d => "bar " + d.COUNTYFP)
+            .attr("width", chartInnerWidth / filteredData.length - 1)
+            .on("mouseover", function(event, d){
+                highlight(d);
+            })
+            .on("mouseover", function(event, d){
+                dehighlight(d);
+            })
+            .on("mousemove", moveLabel);
 
-        //annotate bars with attribute value text
-        var numbers = chart.selectAll(".numbers")
-            .data(filteredData)
-            .enter()
-            .append("text")
-            .sort(function(a, b){
-                return b[expressed]-a[expressed]
-            })
-            .attr("class", function(d){
-                return "numbers " + d.COUNTY;
-            })
-            .attr("text-anchor", "middle")
+            console.log(bars)
+
+        var desc = bars.append("desc")
+            .text('{"stroke": "none", "stroke-width": "0px"}');
+
             
 
         var chartTitle = chart.append("text")
@@ -225,7 +237,7 @@
             .attr("height", chartInnerHeight)
             .attr("transform", translate);
 
-        updateChart(bars, numbers, csvData.length, colorScale);
+        updateChart(bars, csvData.length, colorScale);
 
     };
 
@@ -267,8 +279,7 @@
             .duration(1000)
             .style("fill", function(d){            
                 var value = d.properties[expressed];            
-                if(value) {
-                    console.log(d, value)                
+                if(value) {               
                     return colorScale(value);            
                 } else {
                     console.log(d, value)                     
@@ -286,22 +297,14 @@
                 return i * 20;
             })
             .duration(500);
-        
-        var numbers = d3.selectAll(".numbers")
-            .data(filteredData = getFilteredData(csvData))
-            .sort((a, b) => b[expressed] - a[expressed])
-            .transition()
-            .delay(function(d, i) {
-                return i * 20;
-            })
-            .duration(500);
+    
 
 
-        updateChart(bars, numbers, csvData.length, colorScale)
+        updateChart(bars,csvData.length, colorScale)
   
     };
 
-    function updateChart(bars, numbers, n, colorScale) {
+    function updateChart(bars,n, colorScale) {
         bars.attr("x", (d, i) => i * (chartInnerWidth / 10) + leftPadding)
             .attr("height", d => Math.abs(yScale(d[expressed]) - yScale(0))) // Height is absolute difference from zero
             .attr("y", d => d[expressed] >= 0 ? yScale(d[expressed]) : yScale(0)) // Positive bars go up, negative bars go down
@@ -313,16 +316,6 @@
                     return "#00000";
                             
                 }  
-            });
-
-            numbers.attr("x", (d, i) => i * (chartInnerWidth / 10) + leftPadding + (chartInnerWidth / 10) / 2)
-            .attr("y", d => {
-                return d[expressed] >= 0 
-                    ? yScale(d[expressed]) - 5  // Position text above positive bars
-                    : yScale(d[expressed]) + 15; // Position text below negative bars
-            })
-            .text(function(d){
-                return d[expressed];
             });
             //at the bottom of updateChart()...add text to chart title
         var chartTitle = d3.select(".chartTitle")
@@ -343,6 +336,97 @@
 
         return filteredData;
     }
+
+    //function to highlight enumeration units and bars
+    function highlight(props){
+        //change stroke
+        var selected = d3.selectAll(".counties")
+            .filter(d => d.properties.COUNTY_FIP === props.COUNTY_FIP) // Filter by FIP code
+            .style("stroke", "purple")
+            .style("stroke-width", "2");
+
+        var selectedBar = d3.selectAll(".bar")
+            .filter(d => d.COUNTYFP === props.COUNTY_FIP) // Ensure FIP codes match
+            .style("stroke", "purple")
+            .style("stroke-width", "2px");
+
+        console.log(selectedBar)
+
+        //Get labels for highlighted counties
+        setLabel(props)
+    }
+
+    function dehighlight(props){
+        var selected = d3.selectAll(".counties")
+            .filter(d => d.properties.COUNTY_FIP === props.COUNTY_FIP) // Filter by FIP code
+            .style("stroke", function(){
+                return getStyle(this, "stroke")
+            })
+            .style("stroke-width", function(){
+                return getStyle(this, "stroke-width")
+            });
+            // Remove highlight from bar
+        d3.selectAll(".bar")
+            .filter(d => d.COUNTYFP === props.COUNTY_FIP)
+            .style("stroke", "none")
+            .style("stroke-width", "0px");
+    
+        function getStyle(element, styleName){
+            var styleText = d3.select(element)
+                .select("desc")
+                .text();
+    
+            var styleObject = JSON.parse(styleText);
+
+            d3.select(".infolabel")
+                .remove();
+    
+            return styleObject[styleName];
+        };
+    };
+
+    //function to create dynamic label
+    function setLabel(props){
+        //label content
+        var labelAttribute = "<h1>" + props[expressed] +
+            "%</h1><b>" + props.COUNTY_NAM + " County <br> " + expressed + "</b>";
+
+        //create info label div
+        var infolabel = d3.select("body")
+            .append("div")
+            .attr("class", "infolabel")
+            .attr("id", props.COUNTY_FIP + "_label")
+            .html(labelAttribute);
+
+        var countyName = infolabel.append("div")
+            .attr("class", "labelname")
+            .html(props.name);
+    };
+
+    //function to move info label with mouse
+    function moveLabel(){
+        //get width of label
+        var labelWidth = d3.select(".infolabel")
+            .node()
+            .getBoundingClientRect()
+            .width;
+    
+        //use coordinates of mousemove event to set label coordinates
+        var x1 = event.clientX + 10,
+            y1 = event.clientY - 75,
+            x2 = event.clientX - labelWidth - 10,
+            y2 = event.clientY + 25;
+    
+        //horizontal label coordinate, testing for overflow
+        var x = event.clientX > window.innerWidth - labelWidth - 20 ? x2 : x1; 
+        //vertical label coordinate, testing for overflow
+        var y = event.clientY < 75 ? y2 : y1; 
+    
+        d3.select(".infolabel")
+            .style("left", x + "px")
+            .style("top", y + "px");
+    };
+    
 
 
 
