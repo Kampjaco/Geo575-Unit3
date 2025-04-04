@@ -82,6 +82,9 @@
 
             //Creates dropdown of attributes
             createDropdown(csvData);
+
+            //Adds legend
+            addLegend(colorScale);
         };
     }
 
@@ -205,6 +208,19 @@
             })
             .on("mousemove", moveLabel);
 
+        //annotate bars with attribute value text
+        var numbers = chart.selectAll(".numbers")
+             .data(filteredData)
+             .enter()
+             .append("text")
+             .sort(function(a, b){
+                 return b[expressed]-a[expressed]
+             })
+             .attr("class", function(d){
+                 return "numbers " + d.COUNTYFP;
+             })
+             .attr("text-anchor", "middle")
+
         var desc = bars.append("desc")
             .text('{"stroke": "none", "stroke-width": "0px"}');
 
@@ -215,6 +231,13 @@
             .attr("y", 40)
             .attr("class", "chartTitle")
             .attr("text-anchor", "middle") // Ensures text is centered around the x position
+
+        var chartSubTitle = chart.append("text")
+            .attr("x", chartWidth / 2) // Centers title horizontally
+            .attr("y", 60)
+            .attr("class", "chartSubTitle")
+            .attr("text-anchor", "middle")
+            .text("Top 5 & Bottom 5 Counties")
 
 
         // Create vertical axis generator
@@ -233,7 +256,7 @@
             .attr("height", chartInnerHeight)
             .attr("transform", translate);
 
-        updateChart(bars, csvData.length, colorScale);
+        updateChart(bars, numbers, csvData.length, colorScale);
 
     };
 
@@ -292,14 +315,23 @@
                 return i * 20;
             })
             .duration(500);
+
+        var numbers = d3.selectAll(".numbers")
+            .data(filteredData = getFilteredData(csvData))
+            .sort((a, b) => b[expressed] - a[expressed])
+            .transition()
+            .delay(function(d, i) {
+                return i * 20;
+            })
+            .duration(500);
     
 
 
-        updateChart(bars,csvData.length, colorScale)
+        updateChart(bars, numbers, csvData.length, colorScale)
   
     };
 
-    function updateChart(bars,n, colorScale) {
+    function updateChart(bars, numbers, n, colorScale) {
         bars.attr("x", (d, i) => i * (chartInnerWidth / 10) + leftPadding)
             .attr("height", d => Math.abs(yScale(d[expressed]) - yScale(0))) // Height is absolute difference from zero
             .attr("y", d => d[expressed] >= 0 ? yScale(d[expressed]) : yScale(0)) // Positive bars go up, negative bars go down
@@ -312,9 +344,19 @@
                             
                 }  
             });
-            //at the bottom of updateChart()...add text to chart title
+        numbers.attr("x", (d, i) => i * (chartInnerWidth / 10) + leftPadding + (chartInnerWidth / 10) / 2)
+            .attr("y", d => {
+                return d[expressed] >= 0 
+                    ? yScale(d[expressed]) - 5  // Position text above positive bars
+                    : yScale(d[expressed]) + 15; // Position text below negative bars
+            })
+            .text(function(d){
+                return d[expressed];
+            });
+
+        //at the bottom of updateChart()...add text to chart title
         var chartTitle = d3.select(".chartTitle")
-            .text("Highest and Lowest Population Change Percentage in MN Counties Between " + expressed)
+            .text("Population Change Percentage in MN Counties Between " + expressed)
             .attr("x", chartWidth / 2) // Centers title horizontally
             .attr("text-anchor", "middle")
     }
@@ -334,7 +376,7 @@
 
     //function to highlight enumeration units and bars
     function highlight(props){
-        console.log(props)
+        console.log(props) 
         //change stroke
         var selected = d3.selectAll(".counties")
             .filter(d => d.properties.COUNTY_FIP === props.COUNTY_FIP) // Filter by FIP code
@@ -416,6 +458,47 @@
             .style("left", x + "px")
             .style("top", y + "px");
     };
+
+    //Adds a legend to the page
+    function addLegend(colorScale) {
+
+        var legendSVG = d3.select("body")
+            .append("svg")
+            .attr("class", "legend")
+            .attr("width", 250)
+            .attr("height", 250)
+
+        //List of keys
+        var keys = ["-15% or less", "-14.9% - -10%", "-9.9% - -5%", "-4.9% - 0%", "0.1% - 5%", "5.1% - 10%", "10.1% - 20%", "20.1% - 40%", "40.1% or greater"]
+
+        var color = d3.scaleOrdinal()
+            .domain(keys)
+            .range(colorScale.range());
+        // Add one dot in the legend for each name.
+        var size = 20
+        legendSVG.selectAll("mydots")
+            .data(keys)
+            .enter()
+            .append("rect")
+                .attr("x", 10)
+                .attr("y", function(d,i){ return 10 + i*(size+5)}) // 100 is where the first dot appears. 25 is the distance between dots
+                .attr("width", size)
+                .attr("height", size)
+                .style("fill", function(d){ return color(d)})
+        
+        // Add one dot in the legend for each name.
+        legendSVG.selectAll("mylabels")
+            .data(keys)
+            .enter()
+            .append("text")
+            .attr("x", 40)
+            .attr("y", function(d,i){ return 10 + i*(size+5) + (size/2)}) // 100 is where the first dot appears. 25 is the distance between dots
+            .text(function(d){ return d})
+            .attr("text-anchor", "left")
+            .style("alignment-baseline", "middle")
+                
+    }
+    
     
 
 
